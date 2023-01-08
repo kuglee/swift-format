@@ -161,6 +161,6 @@ public final class SwiftFormatter {
       node: transformedSyntax,
       printTokenStream: debugOptions.contains(.dumpTokenStream),
       whitespaceOnly: false)
-    outputStream.write(printer.prettyPrint())
+    outputStream.write(try printer.prettyPrint())
   }
 }

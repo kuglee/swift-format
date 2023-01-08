@@ -257,7 +257,7 @@ public class PrettyPrinter {
   ///
   /// - Parameters:
   ///   - idx: The index of the token/length pair to be printed.
-  private func printToken(idx: Int) {
+  private func printToken(idx: Int) throws {
     let token = tokens[idx]
     let length = lengths[idx]
 
@@ -277,7 +277,7 @@ public class PrettyPrinter {
 
     case .contextualBreakingEnd:
       guard let closedContext = activeBreakingContexts.popLast() else {
-        fatalError("Encountered unmatched contextualBreakingEnd token.")
+        throw PrintTokenError.unmatchedContextualBreakingEnd
       }
 
       // Break contexts create scopes, and a breaking context should never be carried between
@@ -351,7 +351,7 @@ public class PrettyPrinter {
 
       case .close(let closeMustBreak):
         guard let matchingOpenBreak = activeOpenBreaks.popLast() else {
-          fatalError("Unmatched closing break")
+          throw PrintTokenError.unmatchedClosingBreak
         }
 
         let openedOnDifferentLine
@@ -548,7 +548,7 @@ public class PrettyPrinter {
 
     case .commaDelimitedRegionEnd(let hasTrailingComma, let isSingleElement):
       guard let startLineNumber = commaDelimitedRegionStack.popLast() else {
-        fatalError("Found trailing comma end with no corresponding start.")
+        throw PrintTokenError.trailingCommaEndWithNoCorrespondingStart
       }
 
       // We need to specifically disable trailing commas on elements of single item collections.
@@ -578,7 +578,7 @@ public class PrettyPrinter {
   /// (1979).
   ///
   /// - Returns: A String containing the formatted source code.
-  public func prettyPrint() -> String {
+  public func prettyPrint() throws -> String {
     // Keep track of the indices of the .open and .break token locations.
     var delimIndexStack = [Int]()
     // Keep a running total of the token lengths.
@@ -687,11 +687,11 @@ public class PrettyPrinter {
 
     // Print out the token stream, wrapping according to line-length limitations.
     for i in 0..<tokens.count {
-      printToken(idx: i)
+      try printToken(idx: i)
     }
 
     guard activeOpenBreaks.isEmpty else {
-      fatalError("At least one .break(.open) was not matched by a .break(.close)")
+      throw PrettyPrintError.openBreakWithNoBreakClose
     }
 
     return outputBuffer
@@ -798,4 +798,15 @@ extension Finding.Message {
 
   fileprivate static let removeTrailingComma: Finding.Message =
     "remove trailing comma from the last element in single line collection literal"
+}
+
+enum PrintTokenError: String, Error {
+  case unmatchedContextualBreakingEnd = "Encountered unmatched contextualBreakingEnd token."
+  case unmatchedClosingBreak = "Unmatched closing break"
+  case trailingCommaEndWithNoCorrespondingStart =
+    "Found trailing comma end with no corresponding start"
+}
+
+enum PrettyPrintError: String, Error {
+  case openBreakWithNoBreakClose = "At least one .break(.open) was not matched by a .break(.close)"
 }
